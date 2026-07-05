@@ -1,0 +1,15 @@
+{
+    "name": "voicenote.yourname",
+    "description": "Offline push-to-talk speech-to-text notes and assistant (whisper.cpp on-device)",
+    "architecture": "@CLICK_ARCH@",
+    "title": "VoiceNote",
+    "hooks": {
+        "voicenote": {
+            "apparmor": "voicenote.apparmor",
+            "desktop": "voicenote.desktop"
+        }
+    },
+    "version": "0.1.0",
+    "maintainer": "Your Name <you@example.com>",
+    "framework": "ubuntu-touch-24.04-1.x"
+}

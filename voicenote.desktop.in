@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=VoiceNote
+Comment=Offline speech-to-text with whisper.cpp
+Exec=voicenote
+Icon=assets/logo.svg
+Terminal=false
+Type=Application
+X-Lomiri-Touch=true
