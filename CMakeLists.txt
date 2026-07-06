@@ -42,6 +42,7 @@ execute_process(
 
 configure_file(manifest.json.in ${CMAKE_CURRENT_BINARY_DIR}/manifest.json)
 configure_file(voicenote.desktop.in ${CMAKE_CURRENT_BINARY_DIR}/voicenote.desktop)
+configure_file(voicenote-button.desktop.in ${CMAKE_CURRENT_BINARY_DIR}/voicenote-button.desktop)
 
 add_executable(voicenote
   src/main.cpp
@@ -58,5 +59,7 @@ target_link_libraries(voicenote
 install(TARGETS voicenote RUNTIME DESTINATION .)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/manifest.json DESTINATION .)
 install(FILES voicenote.apparmor DESTINATION .)
+install(FILES voicenote-button.apparmor DESTINATION .)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/voicenote.desktop DESTINATION .)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/voicenote-button.desktop DESTINATION .)
 install(DIRECTORY assets DESTINATION .)

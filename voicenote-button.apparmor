@@ -1,0 +1,9 @@
+{
+    "policy_groups": [
+        "audio",
+        "microphone",
+        "networking",
+        "calendar"
+    ],
+    "policy_version": 2404.1
+}
