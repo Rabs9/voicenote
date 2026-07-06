@@ -1,111 +1,80 @@
-# VoiceNote — offline speech-to-text for Ubuntu Touch 24.04
+# VoiceNote — offline voice assistant for Ubuntu Touch
 
-Push-to-talk voice notes and (eventually) voice actions, running whisper.cpp
-entirely on-device. Target device: Xiaomi Poco X3 NFC ("surya"), UT 24.04-1.x.
+Push-to-talk speech-to-text running **entirely on-device** via
+[whisper.cpp](https://github.com/ggml-org/whisper.cpp). Nothing you say ever
+leaves the phone — the only network use is a one-time model download.
 
-## Prerequisites (on your Fedora dev machine)
+Developed and tested on a Xiaomi Poco X3 NFC ("surya") running
+Ubuntu Touch 24.04-1.x.
 
-- Docker (Clickable uses it for cross-compiling)
-- Clickable **8.4.0 or later** (needed for the 24.04-1.x framework):
-  `pipx install clickable-ut` then `clickable update-images`
-- Developer mode enabled on the phone, connected via USB (adb) or same
-  network (ssh)
+## Features
 
-## Setup
+- **Voice notes** — hold to talk, release, edit, save. Notes are plain text
+  files (`~/.local/share/voicenote.falcon/voicenote.falcon/notes/`) —
+  greppable, syncable, no lock-in.
+- **Notes browser & editor** — browse, edit (keyboard or dictation), delete.
+- **Voice commands** — "open camera", "search for ubuntu touch news".
+- **Alarms** — "set alarm for tomorrow at 6 AM", "set alarm for February
+  14th for Valentine's day at 9 AM". Creates real Clock-app alarms via the
+  Lomiri Alarm API.
+- **Calendar events** — "add event dentist appointment on Friday at 2 PM".
+  Creates real Calendar-app events via QtOrganizer/EDS.
+- **Model choice** — whisper tiny.en (fast) or base.en (accurate), selected
+  in Settings, downloaded once, persisted.
+
+## Permissions
+
+`audio`, `microphone`, `networking` (model download only), and `calendar`.
+
+**Why `calendar` (reserved policy group):** alarms and calendar events are
+created through the system EDS store — the same mechanism the Clock and
+Calendar apps use. Alarm/event creation happens only on explicit voice
+command from the user. The app never reads existing calendar data and never
+transmits anything; all speech processing is offline.
+
+## Building
+
+Prerequisites: [clickable](https://clickable-ut.dev/) ≥ 8.4.0 with
+container support (podman/docker).
 
 ```bash
+git clone --recurse-submodules <this-repo> voicenote
 cd voicenote
-git init
-git submodule add https://github.com/ggml-org/whisper.cpp libs/whisper.cpp
-# Pin to a release tag for reproducible builds, e.g.:
-# cd libs/whisper.cpp && git checkout v1.7.4 && cd ../..
+clickable build --arch arm64     # or --arch armhf
 ```
 
-Rename the app id: replace `voicenote.yourname` with your own
-`appname.developername` in `manifest.json.in`, `qml/Main.qml`, and
-`src/main.cpp`, and set the maintainer field in the manifest.
+The whisper.cpp submodule is pinned to release **v1.9.1**.
 
-## Build & run
+Install on a device over adb:
 
 ```bash
-clickable build --arch arm64      # cross-compile + package the click
-clickable install                 # push to the phone
-clickable launch                  # start it
-clickable logs                    # tail app output (very useful)
-clickable desktop                 # run on your PC for fast UI iteration
+adb push build/aarch64-linux-gnu/app/voicenote.falcon_*.click /tmp/
+adb shell 'gdbus call --system --dest com.lomiri.click \
+  --object-path /com/lomiri/click \
+  --method com.lomiri.click.Install /tmp/voicenote.falcon_<version>_arm64.click'
 ```
 
-Note: `clickable desktop` runs on x86_64 so whisper.cpp gets rebuilt for your
-PC — handy, since you can test transcription locally too.
+(`clickable install` also works on most setups.)
 
-## First run
+Note: the click review will flag the reserved `calendar` policy group —
+expected; see Permissions above.
 
-Tap "Download model" — it fetches `ggml-tiny.en.bin` (~75 MB) from Hugging
-Face into the app's data directory. After that the app never needs the
-network. To try the more accurate `base.en` (~142 MB), change `modelName`
-(exposed as a property on the Transcriber; wire a settings toggle or edit
-the default in `transcriber.h`).
+### Cross-compilation notes
 
-You can also push a model manually instead of downloading:
+The clickable containers don't set `CMAKE_SYSTEM_PROCESSOR`, which makes
+ggml mis-detect the target as x86 and inject SSE/AVX flags. `CMakeLists.txt`
+forces the correct value based on the cross-compiler triplet, and sets
+`GGML_NATIVE=OFF`. This is required for both arm64 and armhf builds.
 
-```bash
-scp ggml-tiny.en.bin phablet@<phone-ip>:.local/share/voicenote.yourname/models/
-```
+## Performance (Snapdragon 732G)
 
-Notes are saved as plain text files in
-`~/.local/share/voicenote.yourname/notes/` — greppable, syncable, no lock-in.
+- First transcription includes ~1 s of model load; the whisper context is
+  cached afterwards.
+- tiny.en transcribes a 5–10 s utterance in a few seconds with
+  `n_threads = 4`.
+- Recordings shorter than ~0.4 s are ignored (whisper hallucinates on
+  silence).
 
-## Performance notes (Snapdragon 732G)
+## License
 
-- First transcription includes ~1 s of model load; the context is cached
-  after that.
-- tiny.en handles a 5–10 s utterance in roughly the same few seconds.
-  base.en is noticeably better on names/punctuation but slower.
-- `n_threads = 4` in `transcriber.cpp` is a starting point (2×A76 + 6×A55);
-  experiment with 2–6.
-- Keep utterances short (< 15 s) for a snappy feel.
-
-## Roadmap
-
-**Phase 1 (this scaffold):** record → transcribe → save/copy notes.
-Only needs `microphone`, `audio`, `networking` policy groups — no manual
-OpenStore review hurdles.
-
-**Phase 2 — intent parsing:** a small grammar over the transcript:
-`call <name>`, `text <name> <message>`, `note <text>`,
-`remind me <when> <what>` / `add event <...>`. Pure string logic, no new
-permissions. For dates ("next Tuesday at 3"), a compact rule-based parser
-is enough — no need for an LLM.
-
-**Phase 3 — system integration:**
-- Contacts: add the `contacts` policy group and use the QtContacts QML/C++
-  API to fuzzy-match the spoken name, then
-  `Qt.openUrlExternally("tel:+15551234567")` to pop the dialer, or
-  `sms:`/`message:` URIs for the messaging app.
-- Calendar: add the `calendar` policy group and insert events directly via
-  QtOrganizer (cleaner than trying to drive the calendar app's UI).
-- **OpenStore caveat:** `contacts` and `calendar` are *reserved* policy
-  groups — submissions using them get flagged for manual human review.
-  Plan to ship Phase 1/2 first, then add these with a justification in the
-  submission notes.
-
-**Ideas later:** a VAD (voice activity detection) auto-stop so you don't
-have to hold the button; per-note tags ("note to wine: ..."); export via
-Content Hub.
-
-## Prior art worth reading
-
-- **Speech Note (dsnote)** — open-source Qt/QML offline STT for Linux
-  mobile; solves many of the same problems.
-- whisper.cpp `examples/` — especially `stream` and `command` for
-  low-latency tricks.
-
-## Known rough edges in this scaffold
-
-This scaffold was written blind (not compiled against the UT 24.04 SDK), so
-expect small fixes: whisper.cpp API drift between releases
-(`whisper_init_from_file_with_params` is current as of v1.5+), Lomiri
-component property names, and the QAudioInput format negotiation. If the mic
-delivers 48 kHz despite the requested format (check `clickable logs`),
-downsample before handing PCM to whisper — PulseAudio normally resamples for
-you, so this is unlikely but worth knowing.
+MIT — see [LICENSE](LICENSE). whisper.cpp is MIT-licensed.
