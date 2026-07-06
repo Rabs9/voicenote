@@ -9,7 +9,7 @@
             "desktop": "voicenote.desktop"
         }
     },
-    "version": "0.2.0",
+    "version": "0.2.1",
     "maintainer": "falcon <colocoluicultum@proton.me>",
     "framework": "ubuntu-touch-24.04-1.x"
 }
