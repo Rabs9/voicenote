@@ -1,8 +1,0 @@
-[Desktop Entry]
-Name=VoiceNote Button
-Comment=Push-to-talk button — speak a note or command
-Exec=voicenote --button
-Icon=assets/logo.svg
-Terminal=false
-Type=Application
-X-Lomiri-Touch=true

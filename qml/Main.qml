@@ -261,17 +261,7 @@ MainView {
         }
         onTranscriptChanged: {
             // Route dictation to whichever page is active
-            if (pageStack.currentPage === buttonPage) {
-                // widget mode: command or auto-saved note, nothing else
-                if (root.tryCommand(stt.transcript)) {
-                    buttonPage.lastResult = statusLabel.text
-                } else if (stt.saveNote(stt.transcript)) {
-                    buttonPage.lastResult = i18n.tr("Note saved: \u201c%1\u201d")
-                        .arg(stt.transcript.length > 60
-                             ? stt.transcript.substring(0, 60) + "\u2026"
-                             : stt.transcript)
-                }
-            } else if (pageStack.currentPage === editorPage) {
+            if (pageStack.currentPage === editorPage) {
                 var t = editorArea.text.trim()
                 editorArea.text = t.length > 0 ? t + " " + stt.transcript
                                                : stt.transcript
@@ -286,7 +276,7 @@ MainView {
 
     PageStack {
         id: pageStack
-        Component.onCompleted: push(buttonMode ? buttonPage : recorderPage)
+        Component.onCompleted: push(recorderPage)
 
         // ============================================================
         // PAGE 1: Recorder
@@ -825,79 +815,6 @@ MainView {
                 }
 
                 // future configuration entries go here
-            }
-        }
-
-        // ============================================================
-        // PAGE 6: Widget mode ("VoiceNote Button" launcher entry)
-        // ============================================================
-        Page {
-            id: buttonPage
-            visible: false
-
-            property string lastResult: ""
-
-            // no header — just the button
-            header: Item { visible: false; height: 0 }
-
-            Rectangle {
-                anchors.fill: parent
-                color: "#101512"
-            }
-
-            Column {
-                anchors.centerIn: parent
-                spacing: units.gu(3)
-                width: parent.width - units.gu(4)
-
-                Rectangle {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: units.gu(28)
-                    height: width
-                    radius: width / 2
-                    color: stt.recording
-                           ? theme.palette.normal.negative
-                           : stt.busy ? theme.palette.normal.base
-                                      : theme.palette.normal.positive
-                    scale: bigArea.pressed ? 1.06 : 1.0
-                    Behavior on scale { NumberAnimation { duration: 80 } }
-
-                    Label {
-                        anchors.centerIn: parent
-                        text: stt.recording ? i18n.tr("Listening")
-                              : stt.busy   ? i18n.tr("Working…")
-                                           : i18n.tr("Hold to talk")
-                        color: "white"
-                        fontSize: "x-large"
-                    }
-
-                    MouseArea {
-                        id: bigArea
-                        anchors.fill: parent
-                        enabled: !stt.busy && stt.modelReady
-                        onPressed: stt.startRecording()
-                        onReleased: stt.stopAndTranscribe()
-                        onCanceled: stt.cancelRecording()
-                    }
-                }
-
-                ActivityIndicator {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    running: stt.busy
-                    visible: stt.busy
-                }
-
-                Label {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                    color: "#a8b5ae"
-                    text: buttonPage.lastResult !== ""
-                          ? buttonPage.lastResult
-                          : stt.modelReady
-                            ? i18n.tr("Speak a note or a command — it's handled automatically")
-                            : i18n.tr("Open the full VoiceNote app once to download the speech model")
-                }
             }
         }
 

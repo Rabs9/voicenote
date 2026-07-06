@@ -7,13 +7,9 @@
         "voicenote": {
             "apparmor": "voicenote.apparmor",
             "desktop": "voicenote.desktop"
-        },
-        "voicenote-button": {
-            "apparmor": "voicenote-button.apparmor",
-            "desktop": "voicenote-button.desktop"
         }
     },
-    "version": "0.3.0",
+    "version": "0.3.2",
     "maintainer": "falcon <colocoluicultum@proton.me>",
     "framework": "ubuntu-touch-24.04-1.x"
 }
