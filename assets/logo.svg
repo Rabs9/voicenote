@@ -1,6 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="56" fill="#2c7873"/>
-  <rect x="100" y="48" width="56" height="104" rx="28" fill="#ffffff"/>
-  <path d="M76 128a52 52 0 0 0 104 0" fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round"/>
-  <line x1="128" y1="182" x2="128" y2="212" stroke="#ffffff" stroke-width="16" stroke-linecap="round"/>
+  <!-- M1: "Neon mic" — glowing outline mic with sound ripples on dark -->
+  <defs>
+    <linearGradient id="neon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6ee87f"/>
+      <stop offset="1" stop-color="#2f9440"/>
+    </linearGradient>
+    <radialGradient id="bgm1" cx="0.5" cy="0.4" r="0.8">
+      <stop offset="0" stop-color="#1c2620"/>
+      <stop offset="1" stop-color="#0b120e"/>
+    </radialGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bgm1)"/>
+  <!-- glow layers (simulated) -->
+  <g fill="none" stroke="#3eb34f" stroke-linecap="round">
+    <g stroke-opacity="0.12" stroke-width="26">
+      <rect x="100" y="46" width="56" height="102" rx="28" fill="none"/>
+      <path d="M74 124a54 54 0 0 0 108 0"/>
+    </g>
+    <g stroke-opacity="0.25" stroke-width="16">
+      <rect x="100" y="46" width="56" height="102" rx="28" fill="none"/>
+      <path d="M74 124a54 54 0 0 0 108 0"/>
+    </g>
+  </g>
+  <!-- crisp neon lines -->
+  <g fill="none" stroke="url(#neon)" stroke-width="9" stroke-linecap="round">
+    <rect x="100" y="46" width="56" height="102" rx="28"/>
+    <path d="M74 124a54 54 0 0 0 108 0"/>
+    <line x1="128" y1="178" x2="128" y2="200"/>
+    <line x1="104" y1="200" x2="152" y2="200"/>
+  </g>
+  <!-- mic grille dashes -->
+  <g stroke="#6ee87f" stroke-width="6" stroke-linecap="round" stroke-opacity="0.85">
+    <line x1="116" y1="78"  x2="140" y2="78"/>
+    <line x1="116" y1="97"  x2="140" y2="97"/>
+    <line x1="116" y1="116" x2="140" y2="116"/>
+  </g>
+  <!-- ripples -->
+  <g fill="none" stroke="#3eb34f" stroke-linecap="round">
+    <path d="M60 78a86 86 0 0 0-14 46" stroke-opacity="0.5" stroke-width="7"/>
+    <path d="M196 78a86 86 0 0 1 14 46" stroke-opacity="0.5" stroke-width="7"/>
+    <path d="M74 60a110 110 0 0 0-28 64" stroke-opacity="0.22" stroke-width="7"/>
+    <path d="M182 60a110 110 0 0 1 28 64" stroke-opacity="0.22" stroke-width="7"/>
+  </g>
 </svg>
