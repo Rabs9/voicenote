@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QByteArray>
 #include <QString>
+#include <QStringList>
 #include <QFutureWatcher>
 
 class QAudioInput;
@@ -50,6 +51,10 @@ public:
     Q_INVOKABLE void downloadModel();
     Q_INVOKABLE QString modelPath() const;
     Q_INVOKABLE bool saveNote(const QString &text) const;
+    Q_INVOKABLE QStringList listNotes() const;
+    Q_INVOKABLE QString readNote(const QString &filename) const;
+    Q_INVOKABLE bool deleteNote(const QString &filename) const;
+    Q_INVOKABLE bool updateNote(const QString &filename, const QString &text) const;
 
 signals:
     void recordingChanged();

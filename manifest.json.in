@@ -1,5 +1,5 @@
 {
-    "name": "voicenote.yourname",
+    "name": "voicenote.falcon",
     "description": "Offline push-to-talk speech-to-text notes and assistant (whisper.cpp on-device)",
     "architecture": "@CLICK_ARCH@",
     "title": "VoiceNote",
@@ -9,7 +9,7 @@
             "desktop": "voicenote.desktop"
         }
     },
-    "version": "0.1.0",
-    "maintainer": "Your Name <you@example.com>",
+    "version": "0.2.0",
+    "maintainer": "falcon <colocoluicultum@proton.me>",
     "framework": "ubuntu-touch-24.04-1.x"
 }

@@ -11,6 +11,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QSettings>
 #include <QtConcurrent/QtConcurrent>
 #include <QDebug>
 
@@ -30,6 +31,8 @@ static QString modelUrl(const QString &name)
 Transcriber::Transcriber(QObject *parent)
     : QObject(parent)
 {
+    m_modelName = QSettings().value(QStringLiteral("modelName"),
+                                    m_modelName).toString();
     m_net = new QNetworkAccessManager(this);
 
     connect(&m_watcher, &QFutureWatcher<QString>::finished, this, [this]() {
@@ -58,6 +61,7 @@ void Transcriber::setModelName(const QString &name)
     if (name == m_modelName)
         return;
     m_modelName = name;
+    QSettings().setValue(QStringLiteral("modelName"), name);
     // Different model file -> drop the cached context
     if (m_ctx) {
         whisper_free(m_ctx);
@@ -94,6 +98,7 @@ void Transcriber::setStatus(const QString &s)
 
 void Transcriber::startRecording()
 {
+    qDebug() << "startRecording() called, recording=" << m_recording << "busy=" << m_busy;
     if (m_recording || m_busy)
         return;
     if (!modelReady()) {
@@ -110,21 +115,35 @@ void Transcriber::startRecording()
     fmt.setSampleType(QAudioFormat::SignedInt);
 
     QAudioDeviceInfo dev = QAudioDeviceInfo::defaultInputDevice();
+    qDebug() << "Default input device:" << dev.deviceName()
+             << "isNull:" << dev.isNull();
+
+    if (dev.isNull()) {
+        qWarning() << "No audio input device found";
+        emit error(tr("No microphone found"));
+        return;
+    }
+
     if (!dev.isFormatSupported(fmt)) {
-        // PulseAudio usually resamples for us; fall back to nearest just in case.
         qWarning() << "16kHz mono not natively supported, using nearest format";
         fmt = dev.nearestFormat(fmt);
+        qDebug() << "Nearest format: rate=" << fmt.sampleRate()
+                 << "channels=" << fmt.channelCount()
+                 << "sampleSize=" << fmt.sampleSize();
     }
 
     m_pcmBuffer.clear();
     m_audio = new QAudioInput(dev, fmt, this);
+    qDebug() << "QAudioInput created, calling start()...";
     m_audioDev = m_audio->start();
     if (!m_audioDev) {
+        qWarning() << "QAudioInput::start() returned null, error:" << m_audio->error();
         emit error(tr("Could not open microphone"));
         delete m_audio;
         m_audio = nullptr;
         return;
     }
+    qDebug() << "QAudioInput started successfully";
 
     connect(m_audioDev, &QIODevice::readyRead, this, [this]() {
         if (m_audioDev)
@@ -152,17 +171,24 @@ void Transcriber::cancelRecording()
 
 void Transcriber::stopAndTranscribe()
 {
+    qDebug() << "stopAndTranscribe() called, recording=" << m_recording;
     if (!m_recording)
         return;
 
-    m_audio->stop();
+    // Read remaining data BEFORE stopping — the QIODevice becomes invalid after stop()
     if (m_audioDev)
         m_pcmBuffer.append(m_audioDev->readAll());
-    m_audio->deleteLater();
-    m_audio = nullptr;
+
+    if (m_audio) {
+        m_audio->stop();
+        m_audio->deleteLater();
+        m_audio = nullptr;
+    }
     m_audioDev = nullptr;
     m_recording = false;
     emit recordingChanged();
+
+    qDebug() << "step 4: PCM buffer size:" << m_pcmBuffer.size() << "bytes";
 
     // ~0.4 s minimum, otherwise whisper hallucinates on silence
     if (m_pcmBuffer.size() < kSampleRate * 2 * 4 / 10) {
@@ -170,8 +196,10 @@ void Transcriber::stopAndTranscribe()
         return;
     }
 
+    qDebug() << "step 5: starting whisper";
     runWhisperAsync(m_pcmBuffer);
     m_pcmBuffer.clear();
+    qDebug() << "step 6: whisper async launched";
 }
 
 // --------------------------------------------------------------------------
@@ -226,16 +254,21 @@ QString Transcriber::transcribePcm(const QString &modelFile,
     // Snapdragon 732G: 2x A76 + 6x A55. 4 threads is a decent balance.
     params.n_threads       = 4;
 
-    if (whisper_full(*ctxCache, params, pcmf32.data(),
-                     static_cast<int>(pcmf32.size())) != 0) {
-        qWarning() << "whisper_full failed";
+    qDebug() << "whisper: running inference on" << pcmf32.size() << "samples";
+    int rc = whisper_full(*ctxCache, params, pcmf32.data(),
+                          static_cast<int>(pcmf32.size()));
+    qDebug() << "whisper: whisper_full returned" << rc;
+    if (rc != 0) {
+        qWarning() << "whisper_full failed with code" << rc;
         return QString();
     }
 
     QString out;
     const int segs = whisper_full_n_segments(*ctxCache);
+    qDebug() << "whisper: got" << segs << "segments";
     for (int i = 0; i < segs; ++i)
         out += QString::fromUtf8(whisper_full_get_segment_text(*ctxCache, i));
+    qDebug() << "whisper: result =" << out;
     return out;
 }
 
@@ -296,13 +329,17 @@ void Transcriber::downloadModel()
 // Notes (Phase 1: plain text files in app data)
 // --------------------------------------------------------------------------
 
+static QString notesDir()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+           + QStringLiteral("/notes");
+}
+
 bool Transcriber::saveNote(const QString &text) const
 {
     if (text.trimmed().isEmpty())
         return false;
-    const QString dir =
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
-        + QStringLiteral("/notes");
+    const QString dir = notesDir();
     QDir().mkpath(dir);
     const QString fname = dir + QStringLiteral("/note-%1.txt")
         .arg(QDateTime::currentDateTime().toString(
@@ -312,5 +349,45 @@ bool Transcriber::saveNote(const QString &text) const
         return false;
     f.write(text.toUtf8());
     f.write("\n");
+    return true;
+}
+
+QStringList Transcriber::listNotes() const
+{
+    QDir dir(notesDir());
+    if (!dir.exists())
+        return {};
+    QStringList files = dir.entryList(QStringList() << QStringLiteral("*.txt"),
+                                      QDir::Files, QDir::Name | QDir::Reversed);
+    return files;
+}
+
+QString Transcriber::readNote(const QString &filename) const
+{
+    QFile f(notesDir() + QLatin1Char('/') + filename);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return QString();
+    return QString::fromUtf8(f.readAll()).trimmed();
+}
+
+bool Transcriber::deleteNote(const QString &filename) const
+{
+    return QFile::remove(notesDir() + QLatin1Char('/') + filename);
+}
+
+bool Transcriber::updateNote(const QString &filename, const QString &text) const
+{
+    if (filename.contains(QLatin1Char('/'))) {
+        qWarning() << "updateNote: rejected filename" << filename;
+        return false;
+    }
+    QFile f(notesDir() + QLatin1Char('/') + filename);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        qWarning() << "updateNote: cannot open" << f.fileName() << f.errorString();
+        return false;
+    }
+    f.write(text.toUtf8());
+    f.write("\n");
+    qDebug() << "updateNote: wrote" << text.size() << "chars to" << f.fileName();
     return true;
 }

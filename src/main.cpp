@@ -7,8 +7,8 @@
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
-    app.setApplicationName(QStringLiteral("voicenote.yourname"));
-    app.setOrganizationName(QStringLiteral("voicenote.yourname"));
+    app.setApplicationName(QStringLiteral("voicenote.falcon"));
+    app.setOrganizationName(QStringLiteral("voicenote.falcon"));
 
     qmlRegisterType<Transcriber>("VoiceNote", 1, 0, "Transcriber");
 

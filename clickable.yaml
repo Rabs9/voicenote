@@ -4,12 +4,10 @@ builder: cmake
 framework: ubuntu-touch-24.04-1.x
 kill: voicenote
 
-# Poco X3 NFC is arm64
-default_arch: arm64
-
 # whisper.cpp benefits from optimizations; Release is important
 build_args:
   - -DCMAKE_BUILD_TYPE=Release
+  - -DCMAKE_SYSTEM_PROCESSOR=aarch64
 
 dependencies_target:
   - libqt5multimedia5-plugins

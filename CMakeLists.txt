@@ -21,6 +21,16 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
+set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+set(GGML_CPU_ALL_VARIANTS OFF CACHE BOOL "" FORCE)
+
+# Force correct arch for cross-compilation (clickable doesn't set CMAKE_SYSTEM_PROCESSOR)
+if(CMAKE_C_COMPILER MATCHES "aarch64")
+  set(CMAKE_SYSTEM_PROCESSOR "aarch64" CACHE STRING "" FORCE)
+elseif(CMAKE_C_COMPILER MATCHES "arm-linux-gnueabihf")
+  set(CMAKE_SYSTEM_PROCESSOR "arm" CACHE STRING "" FORCE)
+endif()
+
 add_subdirectory(libs/whisper.cpp EXCLUDE_FROM_ALL)
 
 # Click architecture for the manifest
